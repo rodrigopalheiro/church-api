@@ -1,0 +1,443 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// AUTHENTICATION 
+
+model User {
+  // Unique identifier for each user
+  id                    String                   @id @default(auto()) @map("_id") @db.ObjectId
+  // User's email address for communication and login
+  email                 String                   @unique
+  // Whether the user's email is verified
+  emailVerified         Boolean
+  // User's chosen display name
+  name                  String
+  // User's image url
+  image                 String?
+  // The organization the user is a member of
+  member                OrganizationMember[]
+  // The sessions the user has
+  sessions              Session[]
+  // The accounts the user has
+  accounts              Account[]
+  // The invitations the user has
+  invitations           OrganizationInvitation[]
+  // The initiatives the user is a member of
+  initiativesMembership InitiativeMember[]
+  // The meetings the user is a member of
+  meetingsMembership    MeetingMember[]
+  // Timestamp of when the user account was created
+  createdAt             DateTime                 @default(now())
+  // Timestamp of the last update to the user's information
+  updatedAt             DateTime                 @updatedAt
+
+  @@map("user")
+}
+
+model Session {
+  // Unique identifier for each session
+  id                   String        @id @default(auto()) @map("_id") @db.ObjectId
+  // The id of the user
+  userId               String        @db.ObjectId
+  // The user associated with the session
+  user                 User          @relation(fields: [userId], references: [id])
+  // The unique session token
+  token                String
+  // The time when the session expires
+  expiresAt            DateTime
+  // The IP address of the device
+  ipAddress            String?
+  // The user agent information of the device
+  userAgent            String?
+  // The id of the active organization
+  activeOrganizationId String?       @db.ObjectId
+  // The active organization
+  activeOrganization   Organization? @relation(fields: [activeOrganizationId], references: [id])
+  // Timestamp of when the verification request was created  
+  createdAt            DateTime      @default(now())
+  // Timestamp of when the verification request was updated
+  updatedAt            DateTime      @updatedAt
+
+  @@map("session")
+}
+
+model Account {
+  // Unique identifier for each account  
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  // The id of the user
+  userId                String    @db.ObjectId
+  // The user associated with the account
+  user                  User      @relation(fields: [userId], references: [id])
+  // The id of the account as provided by the SSO or equal to userId for credential accounts
+  accountId             String
+  // The id of the provider
+  providerId            String
+  // The access token of the account. Returned by the provider
+  accessToken           String?
+  // The refresh token of the account. Returned by the provider
+  refreshToken          String?
+  // The time when the verification request expires
+  accessTokenExpiresAt  DateTime?
+  // The time when the verification request expires
+  refreshTokenExpiresAt DateTime?
+  // The scope of the account. Returned by the provider  
+  scope                 String?
+  // The id token returned from the provider
+  idToken               String?
+  // The password of the account. Mainly used for email and password authentication
+  password              String?
+  // Timestamp of when the verification request was created  
+  createdAt             DateTime  @default(now())
+  // Timestamp of when the verification request was updated
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  // Unique identifier for each verification
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  // The identifier for the verification request
+  identifier String
+  // The value to be verified
+  value      String
+  // The time when the verification request expires
+  expiresAt  DateTime
+  // Timestamp of when the verification request was created  
+  createdAt  DateTime @default(now())
+  // Timestamp of when the verification request was updated
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+model Organization {
+  // Unique identifier for each organization
+  id          String                   @id @default(auto()) @map("_id") @db.ObjectId
+  // The name of the organization
+  name        String
+  // The slug of the organization
+  slug        String                   @unique
+  // The logo of the organization
+  logo        String?
+  // Additional metadata for the organization
+  metadata    String?
+  // Timestamp of when the organization was created
+  createdAt   DateTime                 @default(now())
+  // The members of the organization
+  members     OrganizationMember[]
+  // The invitations of the organization
+  invitations OrganizationInvitation[]
+  // The sessions of the organization
+  sessions    Session[]
+  // The initiatives of the organization
+  initiatives Initiative[]
+
+  @@map("organization")
+}
+
+model OrganizationMember {
+  // Unique identifier for each member
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  // The id of the user
+  userId         String       @db.ObjectId
+  // The user associated with the member
+  user           User         @relation(fields: [userId], references: [id])
+  // The id of the organization
+  organizationId String       @db.ObjectId
+  // The organization associated with the member
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  // The role of the user in the organization
+  role           String
+  // Timestamp of when the member was added to the organization
+  createdAt      DateTime     @default(now())
+
+  @@map("member")
+}
+
+model OrganizationInvitation {
+  // Unique identifier for each invitation
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  // The email address of the user
+  email          String
+  // The id of the inviter
+  inviterId      String       @db.ObjectId
+  // The inviter associated with the invitation
+  inviter        User         @relation(fields: [inviterId], references: [id])
+  // The id of the organization
+  organizationId String       @db.ObjectId
+  // The organization associated with the invitation
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  // The role of the user in the organization
+  role           String
+  // The status of the invitation
+  status         String
+  // Timestamp of when the invitation was created
+  createdAt      DateTime     @default(now())
+
+  @@map("invitation")
+}
+
+// INITIATIVES
+
+enum InitiativeType {
+  DEPARTMENT
+  PROJECT
+  INITIATIVE
+}
+
+model Initiative {
+  // Unique identifier for each initiative
+  id             String                 @id @default(auto()) @map("_id") @db.ObjectId
+  // The name of the initiative
+  name           String
+  // The type of the initiative
+  type           InitiativeType
+  // The parent initiative
+  parentId       String?                @db.ObjectId
+  // The parent initiative
+  parent         Initiative?            @relation("InitiativeHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  // The children initiatives
+  children       Initiative[]           @relation("InitiativeHierarchy")
+  // The organization associated with the initiative
+  organizationId String                 @db.ObjectId
+  // The organization associated with the initiative
+  organization   Organization           @relation(fields: [organizationId], references: [id])
+  // The meetings of the initiative
+  meetings       Meeting[]
+  // The members of the initiative
+  members        InitiativeMember[]
+  // The roles of the initiative members
+  memberRoles    InitiativeMemberRole[]
+
+  @@map("initiative")
+}
+
+model InitiativeMember {
+  // Unique identifier for each initiative member
+  id           String               @id @default(auto()) @map("_id") @db.ObjectId
+  // The id of the user
+  userId       String               @db.ObjectId
+  // The user associated with the member
+  user         User                 @relation(fields: [userId], references: [id])
+  // The id of the initiative
+  initiativeId String               @db.ObjectId
+  // The initiative associated with the member
+  initiative   Initiative           @relation(fields: [initiativeId], references: [id])
+  // The role of the user in the initiative
+  roleId       String               @db.ObjectId
+  // The role associated with the member
+  role         InitiativeMemberRole @relation(fields: [roleId], references: [id])
+  // The timestamp of when the member was created
+  createdAt    DateTime             @default(now())
+  // The timestamp of when the member was updated
+  updatedAt    DateTime             @updatedAt
+
+  @@map("initiative_member")
+}
+
+model InitiativeMemberRole {
+  // Unique identifier for each initiative role
+  id           String             @id @default(auto()) @map("_id") @db.ObjectId
+  // The id of the initiative
+  initiativeId String             @db.ObjectId
+  // The initiative associated with the role
+  initiative   Initiative         @relation(fields: [initiativeId], references: [id])
+  // The name of the role
+  name         String
+  // The description of the role
+  description  String
+  // The members of the role
+  members      InitiativeMember[]
+  // The timestamp of when the role was created
+  createdAt    DateTime           @default(now())
+  // The timestamp of when the role was updated
+  updatedAt    DateTime           @updatedAt
+
+  @@map("initiative_member_role")
+}
+
+// MEETINGS
+
+model Meeting {
+  // Unique identifier for each meeting
+  id                   String                       @id @default(auto()) @map("_id") @db.ObjectId
+  // The title of the meeting
+  title                String
+  // The start time of the meeting
+  startTime            DateTime
+  // The end time of the meeting
+  endTime              DateTime
+  // The price of the meeting
+  price                Float?
+  // The capacity of the meeting
+  capacity             Int?
+  // The initiative of the meeting
+  initiativeId         String?                      @db.ObjectId
+  // The initiative of the meeting
+  initiative           Initiative?                  @relation(fields: [initiativeId], references: [id])
+  // The type of the meeting
+  typeId               String?                      @db.ObjectId
+  // The type of the meeting
+  type                 MeetingType?                 @relation(fields: [typeId], references: [id])
+  // The recurrence rule of the meeting
+  recurrence           MeetingRecurrenceRule?       @relation(fields: [recurrenceId], references: [id])
+  // The recurrence rule of the meeting
+  recurrenceId         String?                      @db.ObjectId
+  // The recurrence exceptions of the meeting
+  recurrenceExceptions MeetingRecurrenceException[]
+  // The visibility of the meeting
+  visibility           Visibility
+  // The status of the meeting
+  status               Status
+  // The attendees of the meeting
+  members              MeetingMember[]
+  // The roles of the meeting members
+  meetingRoles         MeetingRole[]
+  // The timestamp of when the meeting was created
+  createdAt            DateTime                     @default(now())
+  // The timestamp of when the meeting was updated
+  updatedAt            DateTime                     @updatedAt
+
+  @@map("meeting")
+}
+
+model MeetingType {
+  // Unique identifier for each meeting type
+  id      String    @id @default(auto()) @map("_id") @db.ObjectId
+  // The name of the meeting type
+  name    String
+  // The slug of the meeting type
+  slug    String    @unique
+  // The meetings of the meeting type
+  meeting Meeting[]
+
+  @@map("meeting_type")
+}
+
+model MeetingRecurrenceRule {
+  // Unique identifier for each recurrence rule
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  // The frequency of the recurrence rule
+  frequency  Frequency
+  // The interval of the recurrence rule. Ex: a cada X dias/semanas/meses/anos
+  interval   Int
+  // The days of the week applied. Ex: MO, TU, WE...
+  byDay      String[]
+  // The months applied. Ex: 1, 2, 3...
+  byMonth    Int[]
+  // The days of the month applied. Ex: 1, 2, 3...
+  byMonthDay Int[]
+  // The maximum number of occurrences
+  count      Int?
+  // The end date of the recurrence rule
+  until      DateTime?
+  // The meetings of the recurrence rule
+  meetings   Meeting[]
+
+  @@map("meeting_recurrence_rule")
+}
+
+model MeetingRecurrenceException {
+  // Unique identifier for each recurrence exception
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  // The id of the meeting
+  meetingId         String    @db.ObjectId
+  // The meeting associated with the recurrence exception
+  meeting           Meeting   @relation(fields: [meetingId], references: [id])
+  // The date of the exception
+  date              DateTime
+  // The title of the event
+  overrideTitle     String?
+  // The start time of the meeting
+  overrideStartTime DateTime?
+  // The end time of the meeting
+  overrideEndTime   DateTime?
+  // The status of the meeting
+  overrideStatus    Status?
+  // The timestamp of when the meeting was created
+  createdAt         DateTime  @default(now())
+  // The timestamp of when the meeting was updated
+  updatedAt         DateTime  @updatedAt
+
+  @@map("meeting_exception")
+}
+
+model MeetingMember {
+  // Unique identifier for each meeting member
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  // The id of the user
+  userId         String       @db.ObjectId
+  // The user associated with the member
+  user           User         @relation(fields: [userId], references: [id])
+  // The occurrence date of the meeting
+  occurrenceDate DateTime?
+  // The id of the meeting
+  meetingId      String       @db.ObjectId
+  // The meeting associated with the member
+  meeting        Meeting      @relation(fields: [meetingId], references: [id])
+  // The role of the user in the meeting
+  roleId         String?      @db.ObjectId
+  // The role associated with the member
+  role           MeetingRole? @relation(fields: [roleId], references: [id])
+  // The timestamp of when the member was created
+  createdAt      DateTime     @default(now())
+  // The timestamp of when the member was updated
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, meetingId, roleId, occurrenceDate])
+  @@map("meeting_member")
+}
+
+model MeetingRole {
+  // Unique identifier for each meeting role
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  // The id of the meeting
+  meetingId   String          @db.ObjectId
+  // The meeting associated with the role
+  meeting     Meeting         @relation(fields: [meetingId], references: [id])
+  // The name of the role
+  name        String
+  // The description of the role
+  description String
+  // The members of the role
+  members     MeetingMember[]
+  // The timestamp of when the role was created
+  createdAt   DateTime        @default(now())
+  // The timestamp of when the role was updated
+  updatedAt   DateTime        @updatedAt
+
+  @@map("meeting_member_role")
+}
+
+// COMMON ENUMS
+
+enum Status {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
