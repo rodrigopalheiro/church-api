@@ -1,0 +1,6 @@
+name = "api"
+main = "src/index.ts"
+compatibility_date = "2025-02-17"
+
+[observability]
+logs = { enabled = true } 
