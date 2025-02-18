@@ -12,7 +12,7 @@ app.get('/', async (c) => {
 	const result = await prisma.meetingType.findMany({
 		cacheStrategy: { ttl: 60 },
 	});
-	return c.json(result);
+	return c.json({ result });
 });
 
 export default app;
