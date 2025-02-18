@@ -1,23 +1,18 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mongodb"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // AUTHENTICATION 
 
 model User {
   // Unique identifier for each user
-  id                    String                   @id @default(auto()) @map("_id") @db.ObjectId
+  id                    String                   @id @default(uuid())
   // User's email address for communication and login
   email                 String                   @unique
   // Whether the user's email is verified
@@ -48,9 +43,9 @@ model User {
 
 model Session {
   // Unique identifier for each session
-  id                   String        @id @default(auto()) @map("_id") @db.ObjectId
+  id                   String        @id @default(uuid())
   // The id of the user
-  userId               String        @db.ObjectId
+  userId               String
   // The user associated with the session
   user                 User          @relation(fields: [userId], references: [id])
   // The unique session token
@@ -62,7 +57,7 @@ model Session {
   // The user agent information of the device
   userAgent            String?
   // The id of the active organization
-  activeOrganizationId String?       @db.ObjectId
+  activeOrganizationId String?
   // The active organization
   activeOrganization   Organization? @relation(fields: [activeOrganizationId], references: [id])
   // Timestamp of when the verification request was created  
@@ -75,9 +70,9 @@ model Session {
 
 model Account {
   // Unique identifier for each account  
-  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  id                    String    @id @default(uuid())
   // The id of the user
-  userId                String    @db.ObjectId
+  userId                String
   // The user associated with the account
   user                  User      @relation(fields: [userId], references: [id])
   // The id of the account as provided by the SSO or equal to userId for credential accounts
@@ -108,7 +103,7 @@ model Account {
 
 model Verification {
   // Unique identifier for each verification
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  id         String   @id @default(uuid())
   // The identifier for the verification request
   identifier String
   // The value to be verified
@@ -125,7 +120,7 @@ model Verification {
 
 model Organization {
   // Unique identifier for each organization
-  id          String                   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String                   @id @default(uuid())
   // The name of the organization
   name        String
   // The slug of the organization
@@ -150,13 +145,13 @@ model Organization {
 
 model OrganizationMember {
   // Unique identifier for each member
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(uuid())
   // The id of the user
-  userId         String       @db.ObjectId
+  userId         String
   // The user associated with the member
   user           User         @relation(fields: [userId], references: [id])
   // The id of the organization
-  organizationId String       @db.ObjectId
+  organizationId String
   // The organization associated with the member
   organization   Organization @relation(fields: [organizationId], references: [id])
   // The role of the user in the organization
@@ -169,15 +164,15 @@ model OrganizationMember {
 
 model OrganizationInvitation {
   // Unique identifier for each invitation
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(uuid())
   // The email address of the user
   email          String
   // The id of the inviter
-  inviterId      String       @db.ObjectId
+  inviterId      String
   // The inviter associated with the invitation
   inviter        User         @relation(fields: [inviterId], references: [id])
   // The id of the organization
-  organizationId String       @db.ObjectId
+  organizationId String
   // The organization associated with the invitation
   organization   Organization @relation(fields: [organizationId], references: [id])
   // The role of the user in the organization
@@ -200,19 +195,19 @@ enum InitiativeType {
 
 model Initiative {
   // Unique identifier for each initiative
-  id             String                 @id @default(auto()) @map("_id") @db.ObjectId
+  id             String                 @id @default(uuid())
   // The name of the initiative
   name           String
   // The type of the initiative
   type           InitiativeType
   // The parent initiative
-  parentId       String?                @db.ObjectId
+  parentId       String?
   // The parent initiative
   parent         Initiative?            @relation("InitiativeHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   // The children initiatives
   children       Initiative[]           @relation("InitiativeHierarchy")
   // The organization associated with the initiative
-  organizationId String                 @db.ObjectId
+  organizationId String
   // The organization associated with the initiative
   organization   Organization           @relation(fields: [organizationId], references: [id])
   // The meetings of the initiative
@@ -227,17 +222,17 @@ model Initiative {
 
 model InitiativeMember {
   // Unique identifier for each initiative member
-  id           String               @id @default(auto()) @map("_id") @db.ObjectId
+  id           String               @id @default(uuid())
   // The id of the user
-  userId       String               @db.ObjectId
+  userId       String
   // The user associated with the member
   user         User                 @relation(fields: [userId], references: [id])
   // The id of the initiative
-  initiativeId String               @db.ObjectId
+  initiativeId String
   // The initiative associated with the member
   initiative   Initiative           @relation(fields: [initiativeId], references: [id])
   // The role of the user in the initiative
-  roleId       String               @db.ObjectId
+  roleId       String
   // The role associated with the member
   role         InitiativeMemberRole @relation(fields: [roleId], references: [id])
   // The timestamp of when the member was created
@@ -250,9 +245,9 @@ model InitiativeMember {
 
 model InitiativeMemberRole {
   // Unique identifier for each initiative role
-  id           String             @id @default(auto()) @map("_id") @db.ObjectId
+  id           String             @id @default(uuid())
   // The id of the initiative
-  initiativeId String             @db.ObjectId
+  initiativeId String
   // The initiative associated with the role
   initiative   Initiative         @relation(fields: [initiativeId], references: [id])
   // The name of the role
@@ -273,7 +268,7 @@ model InitiativeMemberRole {
 
 model Meeting {
   // Unique identifier for each meeting
-  id                   String                       @id @default(auto()) @map("_id") @db.ObjectId
+  id                   String                       @id @default(uuid())
   // The title of the meeting
   title                String
   // The start time of the meeting
@@ -285,17 +280,17 @@ model Meeting {
   // The capacity of the meeting
   capacity             Int?
   // The initiative of the meeting
-  initiativeId         String?                      @db.ObjectId
+  initiativeId         String?
   // The initiative of the meeting
   initiative           Initiative?                  @relation(fields: [initiativeId], references: [id])
   // The type of the meeting
-  typeId               String?                      @db.ObjectId
+  typeId               String?
   // The type of the meeting
   type                 MeetingType?                 @relation(fields: [typeId], references: [id])
   // The recurrence rule of the meeting
   recurrence           MeetingRecurrenceRule?       @relation(fields: [recurrenceId], references: [id])
   // The recurrence rule of the meeting
-  recurrenceId         String?                      @db.ObjectId
+  recurrenceId         String?
   // The recurrence exceptions of the meeting
   recurrenceExceptions MeetingRecurrenceException[]
   // The visibility of the meeting
@@ -316,7 +311,7 @@ model Meeting {
 
 model MeetingType {
   // Unique identifier for each meeting type
-  id      String    @id @default(auto()) @map("_id") @db.ObjectId
+  id      String    @id @default(uuid())
   // The name of the meeting type
   name    String
   // The slug of the meeting type
@@ -329,7 +324,7 @@ model MeetingType {
 
 model MeetingRecurrenceRule {
   // Unique identifier for each recurrence rule
-  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  id         String    @id @default(uuid())
   // The frequency of the recurrence rule
   frequency  Frequency
   // The interval of the recurrence rule. Ex: a cada X dias/semanas/meses/anos
@@ -352,9 +347,9 @@ model MeetingRecurrenceRule {
 
 model MeetingRecurrenceException {
   // Unique identifier for each recurrence exception
-  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  id                String    @id @default(uuid())
   // The id of the meeting
-  meetingId         String    @db.ObjectId
+  meetingId         String
   // The meeting associated with the recurrence exception
   meeting           Meeting   @relation(fields: [meetingId], references: [id])
   // The date of the exception
@@ -377,19 +372,19 @@ model MeetingRecurrenceException {
 
 model MeetingMember {
   // Unique identifier for each meeting member
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(uuid())
   // The id of the user
-  userId         String       @db.ObjectId
+  userId         String
   // The user associated with the member
   user           User         @relation(fields: [userId], references: [id])
   // The occurrence date of the meeting
   occurrenceDate DateTime?
   // The id of the meeting
-  meetingId      String       @db.ObjectId
+  meetingId      String
   // The meeting associated with the member
   meeting        Meeting      @relation(fields: [meetingId], references: [id])
   // The role of the user in the meeting
-  roleId         String?      @db.ObjectId
+  roleId         String?
   // The role associated with the member
   role           MeetingRole? @relation(fields: [roleId], references: [id])
   // The timestamp of when the member was created
@@ -403,9 +398,9 @@ model MeetingMember {
 
 model MeetingRole {
   // Unique identifier for each meeting role
-  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  id          String          @id @default(uuid())
   // The id of the meeting
-  meetingId   String          @db.ObjectId
+  meetingId   String
   // The meeting associated with the role
   meeting     Meeting         @relation(fields: [meetingId], references: [id])
   // The name of the role
