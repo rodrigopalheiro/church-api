@@ -6,6 +6,7 @@ import { getAuth } from './lib/auth';
 const app = new Hono<{
 	Bindings: {
 		DATABASE_URL: string;
+		BETTER_AUTH_URL: string;
 	};
 	Variables: {
 		prisma: ReturnType<typeof getPrisma>;
@@ -21,17 +22,16 @@ app.use(async (c, next) => {
 	await next();
 });
 
-app.use(
-	'*',
-	cors({
-		origin: 'http://localhost:3000',
+app.use('*', async (c, next) => {
+	return cors({
+		origin: c.env.BETTER_AUTH_URL,
 		allowHeaders: ['Content-Type', 'Authorization'],
 		allowMethods: ['POST', 'GET', 'OPTIONS'],
 		exposeHeaders: ['Content-Length'],
 		maxAge: 600,
 		credentials: true,
-	})
-);
+	})(c, next);
+});
 
 app.on(['POST', 'GET'], '/api/auth/*', (c) => {
 	return c.get('auth').handler(c.req.raw);
